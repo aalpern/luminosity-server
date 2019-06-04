@@ -1,27 +1,23 @@
 package main
 
 import (
-	"os"
-
-	"github.com/jawher/mow.cli"
+	"github.com/aalpern/svc"
+	"github.com/aalpern/svc/httpsvc"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	app := cli.App("luminosity-server", "Experimental web UI for Lightroom catalogs")
+	log.SetLevel(log.DebugLevel)
 
-	app.Spec = "[--verbose]"
+	global, _ := svc.NewCompositeComponent(
+		svc.WithNamedComponent("log", &svc.LogConfigComponent{}),
+		svc.WithShutdownWatcher())
 
-	verbose := app.BoolOpt("v verbose", false,
-		"Enable debug logging")
+	c, _ := svc.NewCompositeComponent(
+		svc.WithNamedComponent("profile-server", &svc.ProfileServer{}),
+		svc.WithNamedComponent("http-server", httpsvc.New()))
 
-	app.Before = func() {
-		if *verbose {
-			log.SetLevel(log.DebugLevel)
-		}
-	}
-
-	CmdStart(app)
-
-	app.Run(os.Args)
+	svc.ServiceMain("luminosity-server", "Web access for Lightroom catalogs",
+		svc.WithGlobal(global),
+		svc.WithCommandHandler("start", "Start the API service", c))
 }

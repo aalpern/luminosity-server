@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	_ "expvar"
 	"net/http"
@@ -12,7 +13,8 @@ import (
 	"github.com/rcrowley/go-metrics/exp"
 	log "github.com/sirupsen/logrus"
 )
-
+*/
+/*
 type Config struct {
 	CacheDir    string
 	CatalogDirs []string
@@ -80,3 +82,4 @@ func server(cfg *Config) {
 		"status": "done",
 	}).Info("Done")
 }
+*/
