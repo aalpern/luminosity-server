@@ -47,6 +47,7 @@ func (s *LuminosityApiServer) Start(ctx context.Context) error {
 	e.Use(middleware.Recover())
 
 	e.GET("/api/catalog", s.getCatalogList)
+	e.GET("/api/catalog/:name", s.getCatalog)
 	e.GET("/api/catalog/:name/stats", s.getCatalogStats)
 	e.GET("/api/catalog/:name/sunburst", s.getCatalogSunburst)
 
@@ -97,6 +98,18 @@ func (s *LuminosityApiServer) Kill() error {
 	return nil
 }
 
+func (s *LuminosityApiServer) loadCatalog(name string) (*luminosity.Catalog, error) {
+	if path, ok := s.catalogs[name]; !ok {
+		return nil, echo.NewHTTPError(http.StatusNotFound, "Catalog not found")
+	} else {
+		if cat, err := luminosity.OpenCatalog(path); err != nil {
+			return nil, err
+		} else {
+			return cat, cat.Load()
+		}
+	}
+}
+
 func (s *LuminosityApiServer) getCatalogList(ctx echo.Context) error {
 	names := []string{}
 	for n, _ := range s.catalogs {
@@ -105,12 +118,37 @@ func (s *LuminosityApiServer) getCatalogList(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, names)
 }
 
+func (s *LuminosityApiServer) getCatalog(ctx echo.Context) error {
+	name := ctx.Param("name")
+	if cat, err := s.loadCatalog(name); err != nil {
+		return err
+	} else {
+		defer cat.Close()
+		return ctx.JSON(http.StatusOK, cat)
+	}
+}
+
 func (s *LuminosityApiServer) getCatalogStats(ctx echo.Context) error {
 	name := ctx.Param("name")
-	return ctx.JSON(http.StatusOK, name)
+	if cat, err := s.loadCatalog(name); err != nil {
+		return err
+	} else {
+		defer cat.Close()
+		stats, _ := cat.GetStats()
+		return ctx.JSON(http.StatusOK, stats)
+	}
 }
 
 func (s *LuminosityApiServer) getCatalogSunburst(ctx echo.Context) error {
 	name := ctx.Param("name")
-	return ctx.JSON(http.StatusOK, name)
+	if cat, err := s.loadCatalog(name); err != nil {
+		return err
+	} else {
+		defer cat.Close()
+		if data, err := cat.GetSunburstStats(); err != nil {
+			return err
+		} else {
+			return ctx.JSON(http.StatusOK, data)
+		}
+	}
 }
