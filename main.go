@@ -13,11 +13,9 @@ func main() {
 			WithComponent(&components.LogConfigComponent{}),
 			WithComponent(&components.RuntimeMetricsComponent{}),
 			WithComponent(components.NewShutdownWatcher()))),
-		WithCommandHandler("start", "Start the API service",
+		WithComponentCommand("start", "Start the API service",
 			NewCompositeComponent(
-				WithComponent(&components.ProfileServer{
-					Enable: true,
-				}),
-				WithComponent(&LuminosityApiServer{}))),
+				WithComponent(&components.ProfileServer{Enable: true}),
+				WithComponent(&LuminosityServer{}))),
 	)
 }

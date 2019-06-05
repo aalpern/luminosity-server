@@ -14,7 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type LuminosityApiServer struct {
+type LuminosityServer struct {
+	AssetsDir   string
 	CatalogPath []string
 	Addr        string
 
@@ -22,7 +23,9 @@ type LuminosityApiServer struct {
 	catalogs map[string]string
 }
 
-func (s *LuminosityApiServer) CommandInitialize(cmd *cobra.Command) {
+func (s *LuminosityServer) CommandInitialize(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&s.AssetsDir, "assets-dir", "static",
+		"Path to the static assets directory for the Luminosity web UI")
 	cmd.Flags().StringArrayVarP(&s.CatalogPath, "catalog-path", "p", []string{},
 		"List of directory roots for finding catalogs")
 	cmd.MarkFlagRequired("catalog-paths")
@@ -35,7 +38,7 @@ var (
 	errorNoCatalogPath = errors.New("Catalog path not set")
 )
 
-func (s *LuminosityApiServer) Start(ctx context.Context) error {
+func (s *LuminosityServer) Start(ctx context.Context) error {
 	if err := s.loadCatalogs(); err != nil {
 		return err
 	}
@@ -50,17 +53,19 @@ func (s *LuminosityApiServer) Start(ctx context.Context) error {
 	e.GET("/api/catalog/:name", s.getCatalog)
 	e.GET("/api/catalog/:name/stats", s.getCatalogStats)
 	e.GET("/api/catalog/:name/sunburst", s.getCatalogSunburst)
+	e.Static("/*", s.AssetsDir)
 
 	s.server = e
 	log.WithFields(log.Fields{
-		"action": "api_server",
-		"status": "start",
-		"addr":   s.Addr,
+		"action":     "api_server",
+		"status":     "start",
+		"addr":       s.Addr,
+		"static_dir": s.AssetsDir,
 	}).Info()
 	return s.server.Start(s.Addr)
 }
 
-func (s *LuminosityApiServer) loadCatalogs() error {
+func (s *LuminosityServer) loadCatalogs() error {
 	if len(s.CatalogPath) == 0 {
 		return errorNoCatalogPath
 	}
@@ -76,7 +81,7 @@ func (s *LuminosityApiServer) loadCatalogs() error {
 	return nil
 }
 
-func (s *LuminosityApiServer) Stop() error {
+func (s *LuminosityServer) Stop() error {
 	log.WithFields(log.Fields{
 		"action": "api_server",
 		"status": "stop",
@@ -87,7 +92,7 @@ func (s *LuminosityApiServer) Stop() error {
 	return nil
 }
 
-func (s *LuminosityApiServer) Kill() error {
+func (s *LuminosityServer) Kill() error {
 	log.WithFields(log.Fields{
 		"action": "api_server",
 		"status": "kill",
@@ -98,7 +103,7 @@ func (s *LuminosityApiServer) Kill() error {
 	return nil
 }
 
-func (s *LuminosityApiServer) loadCatalog(name string) (*luminosity.Catalog, error) {
+func (s *LuminosityServer) loadCatalog(name string) (*luminosity.Catalog, error) {
 	if path, ok := s.catalogs[name]; !ok {
 		return nil, echo.NewHTTPError(http.StatusNotFound, "Catalog not found")
 	} else {
@@ -110,7 +115,7 @@ func (s *LuminosityApiServer) loadCatalog(name string) (*luminosity.Catalog, err
 	}
 }
 
-func (s *LuminosityApiServer) getCatalogList(ctx echo.Context) error {
+func (s *LuminosityServer) getCatalogList(ctx echo.Context) error {
 	names := []string{}
 	for n, _ := range s.catalogs {
 		names = append(names, n)
@@ -118,7 +123,7 @@ func (s *LuminosityApiServer) getCatalogList(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, names)
 }
 
-func (s *LuminosityApiServer) getCatalog(ctx echo.Context) error {
+func (s *LuminosityServer) getCatalog(ctx echo.Context) error {
 	name := ctx.Param("name")
 	if cat, err := s.loadCatalog(name); err != nil {
 		return err
@@ -128,7 +133,7 @@ func (s *LuminosityApiServer) getCatalog(ctx echo.Context) error {
 	}
 }
 
-func (s *LuminosityApiServer) getCatalogStats(ctx echo.Context) error {
+func (s *LuminosityServer) getCatalogStats(ctx echo.Context) error {
 	name := ctx.Param("name")
 	if cat, err := s.loadCatalog(name); err != nil {
 		return err
@@ -139,7 +144,7 @@ func (s *LuminosityApiServer) getCatalogStats(ctx echo.Context) error {
 	}
 }
 
-func (s *LuminosityApiServer) getCatalogSunburst(ctx echo.Context) error {
+func (s *LuminosityServer) getCatalogSunburst(ctx echo.Context) error {
 	name := ctx.Param("name")
 	if cat, err := s.loadCatalog(name); err != nil {
 		return err
